@@ -1,0 +1,39 @@
+{
+  "name": "vramfit",
+  "version": "0.1.0",
+  "description": "Offline CLI calculator that tells you whether a local LLM (GGUF file or raw param count) will fit in your GPU VRAM, at what quant level, with how much context, and how it splits across multiple GPUs.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "vramfit": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "keywords": [
+    "llm",
+    "gguf",
+    "vram",
+    "gpu",
+    "quantization",
+    "cli"
+  ]
+}
