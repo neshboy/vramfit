@@ -37,6 +37,25 @@ function parseVramList(raw: string | undefined): number[] | null {
     });
 }
 
+/**
+ * Parses a numeric CLI option, throwing a clear error on NaN/non-finite or
+ * out-of-range input instead of letting a bad Number() result silently flow
+ * into the calculations.
+ */
+function parseNumericOption(
+  raw: string | undefined,
+  flagName: string,
+  isValid: (n: number) => boolean,
+  expected: string,
+): number | undefined {
+  if (raw === undefined) return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || !isValid(n)) {
+    throw new Error(`Invalid --${flagName} value "${raw}". Expected ${expected}.`);
+  }
+  return n;
+}
+
 function resolveVram(options: CheckOptions): { vramMb: number[]; source: "manual" | "nvidia-smi" } {
   const manual = parseVramList(options.vram);
   if (manual) return { vramMb: manual, source: "manual" };
@@ -54,8 +73,10 @@ function resolveVram(options: CheckOptions): { vramMb: number[]; source: "manual
 
 function runCheck(modelPath: string | undefined, options: CheckOptions): void {
   const overheadFraction =
-    options.overhead !== undefined ? Number(options.overhead) : DEFAULT_OVERHEAD_FRACTION;
-  const kvBytesPerElement = options.kvBytes !== undefined ? Number(options.kvBytes) : 2;
+    parseNumericOption(options.overhead, "overhead", (n) => n > -1, "a number greater than -1") ??
+    DEFAULT_OVERHEAD_FRACTION;
+  const kvBytesPerElement =
+    parseNumericOption(options.kvBytes, "kv-bytes", (n) => n > 0, "a positive number of bytes") ?? 2;
 
   let weightBytesTotal: number;
   let quantLabel: string;
@@ -97,9 +118,9 @@ function runCheck(modelPath: string | undefined, options: CheckOptions): void {
     quantLabel = options.quant;
     if (options.layers && options.kvHeads && options.headDim) {
       arch = {
-        numLayers: Number(options.layers),
-        numKvHeads: Number(options.kvHeads),
-        headDim: Number(options.headDim),
+        numLayers: parseNumericOption(options.layers, "layers", (n) => n > 0, "a positive number of layers"),
+        numKvHeads: parseNumericOption(options.kvHeads, "kv-heads", (n) => n > 0, "a positive number of KV heads"),
+        headDim: parseNumericOption(options.headDim, "head-dim", (n) => n > 0, "a positive head dimension"),
       };
     }
     console.log(
@@ -110,9 +131,10 @@ function runCheck(modelPath: string | undefined, options: CheckOptions): void {
   const haveArchForKv =
     arch.numLayers !== undefined && arch.numKvHeads !== undefined && arch.headDim !== undefined;
 
-  const requestedContext = options.context
-    ? Number(options.context)
-    : arch.modelContextLength ?? (haveArchForKv ? FALLBACK_CONTEXT_LENGTH : undefined);
+  const requestedContext =
+    parseNumericOption(options.context, "context", (n) => n > 0, "a positive number of tokens") ??
+    arch.modelContextLength ??
+    (haveArchForKv ? FALLBACK_CONTEXT_LENGTH : undefined);
 
   let kvBytesTotal = 0;
   if (haveArchForKv && requestedContext) {
